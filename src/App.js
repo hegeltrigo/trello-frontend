@@ -1,11 +1,12 @@
-// import React from 'react';
-// import logo from './logo.svg';
 import './App.css';
 import React from 'react'
 import Board from 'react-trello'
 import ReactDOM from 'react-dom';
 import Modal from 'react-modal';
 import axios from "axios";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+ 
 
 const customStyles = {
   content : {
@@ -14,32 +15,38 @@ const customStyles = {
     right                 : 'auto',
     bottom                : 'auto',
     marginRight           : '-50%',
-    transform             : 'translate(-50%, -50%)'
+    transform             : 'translate(-50%, -50%)',
   }
 };
 
-// Modal.setAppElement('#main')
 
 class App extends React.Component {
 
   constructor(props) {
     super(props);
     this.state = {
+
+      title: '',
+      description: '',
+      end_date: new Date(),
+      archived: true,
+      list_id: '',
+      id: '',
+
       board: {
           lanes: [],
           modalIsOpen: false,
-          currentCard: {}
+          
         },
     };
    }
 
-   openModal = () => {
+  openModal = () => {
     this.setState({modalIsOpen: true});
   }
  
   afterOpenModal = () => {
-    // references are now sync'd and can be accessed.
-    // this.subtitle.style.color = '#f00';
+ 
   }
  
   closeModal = () => {
@@ -91,9 +98,33 @@ class App extends React.Component {
     }
   }
 
-  onCardClick = (cardId, metadata, laneId) => {
+  onCardClick = async(cardId, metadata, laneId) => {
 
-    this.openModal()
+    try{
+      const config = {
+        headers: {
+            'content-type': 'multipart/form-data'
+        }
+      }
+      let res = await axios.post(`http://localhost:8080/trello/api.php?task=get_card&id=${cardId}`);
+      console.log(res.data)
+      var date = new Date(res.data.end_date); 
+
+      this.setState({
+        title: res.data.title,
+        description: res.data.description,
+        end_date: date,
+        archived: res.data.archived,
+        id: res.data.id,
+        list_id: res.data.list_id
+      })
+
+      this.openModal()
+
+
+    }catch(e){
+      console.log(e)
+    }
   }
 
   onCardAdd = async (card, laneId) => {
@@ -156,7 +187,7 @@ class App extends React.Component {
         myCard.id = `${card.id}`
         myCard.title = card.title
         myCard.description = card.description
-        // myCard.label = "lala"
+        myCard.label = card.end_date
         myCard.draggable = true
         mycards.push(myCard)
       });  
@@ -170,6 +201,66 @@ class App extends React.Component {
     let my_data = {lanes: lanes }
     this.setState({ board: my_data });  
   };
+
+  handleChange = (event) => {
+    console.log(event.target.name)
+    this.setState({[event.target.name]: event.target.value});
+  }
+
+  handleSubmit = async(event) => {
+    event.preventDefault();
+    try{
+      const formData = new FormData();
+      let date = this.state.end_date
+      date = date.getUTCFullYear() + '-' +
+      ('00' + (date.getUTCMonth()+1)).slice(-2) + '-' +
+      ('00' + date.getUTCDate()).slice(-2) + ' ' + 
+      ('00' + date.getUTCHours()).slice(-2) + ':' + 
+      ('00' + date.getUTCMinutes()).slice(-2) + ':' + 
+      ('00' + date.getUTCSeconds()).slice(-2);
+
+      let archived = this.state.archived ? 1 : 0
+
+      formData.append('title', this.state.title)
+      formData.append('description',this.state.description)
+      formData.append('end_date', date)
+      formData.append('list_id',this.state.list_id)
+      formData.append('archived', archived)
+      formData.append('id',this.state.id)
+
+      console.log(this.state.end_date.getUTCFullYear())
+
+      const config = {
+        headers: {
+            'content-type': 'multipart/form-data'
+        }
+      }
+      let res = await axios.post("http://localhost:8080/trello/api.php?task=update_card", formData, config);
+      this.closeModal()
+      
+      let res2 = await axios.get("http://localhost:8080/trello/api.php?task=get_all");
+      this.getLists(res2.data)
+
+      // this.getLists()
+      console.log(res.data)
+
+    }catch(e){
+      console.log(e)
+    }   
+  }
+
+  toggleChange = () => {
+    this.setState({
+      archived: !this.state.archived,
+    });
+  }
+
+  handleChangeDate = date => {
+    this.setState({
+      end_date: date
+    });
+  };
+
 
   componentDidMount = async () => {
     let res = await axios.get("http://localhost:8080/trello/api.php?task=get_all");
@@ -185,9 +276,11 @@ class App extends React.Component {
             handleDragEnd={this.handleDragEnd}
             onCardAdd={this.onCardAdd}
             onCardDelete={this.onCardDelete}
+            
+            
             onLaneDelete={this.onLaneDelete}
-
             editable
+            // editLaneTitle
             canAddLanes
             onLaneAdd={this.onLaneAdd}
 
@@ -199,10 +292,39 @@ class App extends React.Component {
           onAfterOpen={this.afterOpenModal}
           onRequestClose={this.closeModal}
           style={customStyles}
-          contentLabel="Example Modal"
         >
+
+        <form onSubmit={this.handleSubmit}>
+          <label>
+            <input name="title" placeholder="Titulo" type="text" value={this.state.title} onChange={this.handleChange} />
+          </label>
+          <br></br>
+          <label>
+            <input name="description" placeholder="Descripción" type="text" value={this.state.description} onChange={this.handleChange} />
+          </label>
+          <br></br>
+
+          <DatePicker placeholder="Fecha"
+            // value={this.state.startDate}
+            selected={this.state.end_date}
+            onChange={this.handleChangeDate}
+          />
+          <br></br>
+          <label>
+              <input type="checkbox"
+                checked={this.state.archived}
+                onChange={this.toggleChange}
+              />
+              Archivar
+          </label>
+
+          <br></br>
+          <br></br>
+
+          <input type="submit" value="Guardar" />
+        </form>
  
-         <h1>Show Card en progreso ...</h1>
+ 
         </Modal>
     </div>
    
