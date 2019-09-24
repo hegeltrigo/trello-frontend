@@ -106,8 +106,10 @@ class App extends React.Component {
             'content-type': 'multipart/form-data'
         }
       }
+      console.log('estafuncando', cardId)
       let res = await axios.post(`http://localhost:8080/trello/api.php?task=get_card&id=${cardId}`);
       console.log(res.data)
+
       var date = new Date(res.data.end_date); 
 
       this.setState({
@@ -129,6 +131,7 @@ class App extends React.Component {
 
   onCardAdd = async (card, laneId) => {
     try{
+
       const formData = new FormData();
       let date = new Date().toISOString().slice(0, 19).replace('T', ' ');
       formData.append('title',card.title)
@@ -143,6 +146,10 @@ class App extends React.Component {
         }
       }
       let res = await axios.post("http://localhost:8080/trello/api.php?task=insert_card", formData, config);
+
+      let res2 = await axios.get("http://localhost:8080/trello/api.php?task=get_all");
+      this.getLists(res2.data)
+      
       console.log(res.data)
 
     }catch(e){
