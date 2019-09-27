@@ -31,3 +31,10 @@
     transform: rotate(360deg);
   }
 }
+
+.datePicker{
+  position: relative
+}
+
+.custom-dialog {width:80%; top:20%;}
+

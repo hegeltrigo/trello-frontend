@@ -1,12 +1,18 @@
 import './App.css';
 import React from 'react'
 import Board from 'react-trello'
-import ReactDOM from 'react-dom';
 import Modal from 'react-modal';
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
- 
+import 'bootstrap/dist/css/bootstrap.min.css';
+import Select from 'react-select';
+
+const options = [
+  { value: 'chocolate', label: 'Chocolate' },
+  { value: 'strawberry', label: 'Strawberry' },
+  { value: 'vanilla', label: 'Vanilla' },
+];
 
 const customStyles = {
   content : {
@@ -16,6 +22,7 @@ const customStyles = {
     bottom                : 'auto',
     marginRight           : '-50%',
     transform             : 'translate(-50%, -50%)',
+    position: 'absolute'
   }
 };
 
@@ -31,8 +38,12 @@ class App extends React.Component {
       end_date: new Date(),
       archived: true,
       list_id: '',
+      selectedOption: null,
       id: '',
-
+      value: '',
+      changedValue : '',
+      lista: [],
+      options: [],
       board: {
           lanes: [],
           modalIsOpen: false,
@@ -40,6 +51,30 @@ class App extends React.Component {
         },
     };
    }
+
+  handleChangeSelect = selectedOption => {
+    this.setState({ selectedOption });
+    console.log(`Option selected:`, selectedOption);
+    this.onCardClick(selectedOption.value)
+  };
+
+  handleInputChange =  (input) => {
+    axios.get(`http://localhost:8080/trello/api.php?task=search&search=${input}`)
+    .then(response => {
+        // console.log(response.data)
+        let data = response.data
+        let options = []
+        data.forEach(function (item, index) {
+          let option = {value: item.id, label: item.title}
+          options.push(option)
+        });
+        this.setState({lista: response.data, options: options})
+    })
+    .catch(e => {
+        // Podemos mostrar los errores en la consola
+        console.log(e);
+    })
+  } 
 
   openModal = () => {
     this.setState({modalIsOpen: true});
@@ -68,7 +103,7 @@ class App extends React.Component {
     try{
       
       let res = await axios.delete(`http://localhost:8080/trello/api.php?task=delete&id=${laneId}`);
-      console.log(res.data)
+      console.log(res.data, ' que pachoooooo')
 
     }catch(e){
       console.log(e)
@@ -149,7 +184,7 @@ class App extends React.Component {
 
       let res2 = await axios.get("http://localhost:8080/trello/api.php?task=get_all");
       this.getLists(res2.data)
-      
+
       console.log(res.data)
 
     }catch(e){
@@ -170,6 +205,9 @@ class App extends React.Component {
       }
       let res = await axios.post("http://localhost:8080/trello/api.php?task=insert", formData, config);
       console.log(res.data)
+
+      let res2 = await axios.get("http://localhost:8080/trello/api.php?task=get_all");
+      this.getLists(res2.data)
 
     }catch(e){
       console.log(e)
@@ -268,16 +306,57 @@ class App extends React.Component {
     });
   };
 
+  getCountry =() => {
+    return [
+  {name: 'Afghanistan', code: 'AF'},{name: 'Åland Islands', code: 'AX'},{name: 'Albania', code: 'AL'},{name: 'Algeria', code: 'DZ'},{name: 'American Samoa', code: 'AS'},{name: 'AndorrA', code: 'AD'},{name: 'Angola', code: 'AO'}, {name: 'Anguilla', code: 'AI'},{name: 'Antarctica', code: 'AQ'},{name: 'Antigua and Barbuda', code: 'AG'},{name: 'Argentina', code: 'AR'}, {name: 'Armenia', code: 'AM'},{name: 'Aruba', code: 'AW'}, {name: 'Australia', code: 'AU'},{name: 'Austria', code: 'AT'},{name: 'Azerbaijan', code: 'AZ'},{name: 'Bahamas', code: 'BS'}, {name: 'Bahrain', code: 'BH'},{name: 'Bangladesh', code: 'BD'}, {name: 'Barbados', code: 'BB'},{name: 'Belarus', code: 'BY'}, {name: 'Belgium', code: 'BE'}, {name: 'Belize', code: 'BZ'}, {name: 'Benin', code: 'BJ'}, {name: 'Bermuda', code: 'BM'},{name: 'Bhutan', code: 'BT'},{name: 'Bolivia', code: 'BO'},{name: 'Bosnia and Herzegovina', code: 'BA'},   {name: 'Botswana', code: 'BW'},   {name: 'Bouvet Island', code: 'BV'},   {name: 'Brazil', code: 'BR'},   {name: 'British Indian Ocean Territory', code: 'IO'},   {name: 'Brunei Darussalam', code: 'BN'},   {name: 'Bulgaria', code: 'BG'},   {name: 'Burkina Faso', code: 'BF'},   {name: 'Burundi', code: 'BI'},   {name: 'Cambodia', code: 'KH'},   {name: 'Cameroon', code: 'CM'},   {name: 'Canada', code: 'CA'},   {name: 'Cape Verde', code: 'CV'},{name: 'Cayman Islands', code: 'KY'},   {name: 'Central African Republic', code: 'CF'},   {name: 'Chad', code: 'TD'}]
+  }
+   
+  matchCountry = (state, value) => {
+      console.log(state);
+      console.log(value);
+    return (
+      state.name.toLowerCase().indexOf(value.toLowerCase()) !== -1 ||
+      state.code.toLowerCase().indexOf(value.toLowerCase()) !== -1
+    );
+  }
+
 
   componentDidMount = async () => {
+    Modal.setAppElement('body');
+
     let res = await axios.get("http://localhost:8080/trello/api.php?task=get_all");
     this.getLists(res.data)
   }
+  
 
   render() {
+    const { selectedOption } = this.state;
 
     return(
     <div id="main">
+
+        <div>
+            <Select
+            // other props
+            components={
+              {
+                DropdownIndicator: () => null,
+                IndicatorSeparator: () => null,
+                // Menu: () => null,
+              }
+            }            
+            value={selectedOption}
+            onChange={this.handleChangeSelect}
+            options={this.state.options}
+            // isSearchable={true}
+            placeholder={'Search ...'}
+            onInputChange={this.handleInputChange}
+
+
+          />
+
+        </div>
+       
        <Board data={this.state.board} 
             onCardClick={this.onCardClick}
             handleDragEnd={this.handleDragEnd}
@@ -287,49 +366,79 @@ class App extends React.Component {
             
             onLaneDelete={this.onLaneDelete}
             editable
-            // editLaneTitle
             canAddLanes
             onLaneAdd={this.onLaneAdd}
-
     >
-      
+        
     </Board>
       <Modal
           isOpen={this.state.modalIsOpen}
           onAfterOpen={this.afterOpenModal}
           onRequestClose={this.closeModal}
-          style={customStyles}
+          // style={customStyles}
+          style={{ zIndex: 1 }}
+
+
         >
+        <div className="row">
+          <div className="col-md-12">
+            <div className="row">
+              <div className="col-md-12">
+                <div className="float-right">
 
-        <form onSubmit={this.handleSubmit}>
-          <label>
-            <input name="title" placeholder="Titulo" type="text" value={this.state.title} onChange={this.handleChange} />
-          </label>
-          <br></br>
-          <label>
-            <input name="description" placeholder="Descripción" type="text" value={this.state.description} onChange={this.handleChange} />
-          </label>
-          <br></br>
+                <button onClick={this.closeModal}>X</button>
+                <br></br>                <br></br>
 
-          <DatePicker placeholder="Fecha"
-            // value={this.state.startDate}
-            selected={this.state.end_date}
-            onChange={this.handleChangeDate}
-          />
-          <br></br>
-          <label>
-              <input type="checkbox"
-                checked={this.state.archived}
-                onChange={this.toggleChange}
-              />
-              Archivar
-          </label>
+                </div>  
+              </div>
+            </div>  
+            <div className="row">
+              <div className="col-md-8">
+                    <form onSubmit={this.handleSubmit}>
+                      <div className="form-group">
+                         <input name="title" className= "form-control" placeholder="Title" type="text" value={this.state.title} onChange={this.handleChange} />
 
-          <br></br>
-          <br></br>
+                      </div>
 
-          <input type="submit" value="Guardar" />
-        </form>
+                      <div className="form-group">
+                      <input name="description" className= "form-control" placeholder="Description" type="text" value={this.state.description} onChange={this.handleChange} />
+
+                      </div>
+                    
+                      <div className="form-group">
+                          <DatePicker placeholder="Fecha"
+                          // value={this.state.startDate}
+                          selected={this.state.end_date}
+                          onChange={this.handleChangeDate}
+                          className= "form-control"
+                          style={{ zIndex: 1 }}
+
+                        />
+                      </div>
+                    
+                    <br></br>
+                    <label>
+                        <input type="checkbox"
+                          checked={this.state.archived}
+                          onChange={this.toggleChange}
+                        />
+                        Archivar
+                    </label>
+
+                    <br></br>
+                    <br></br>
+
+                    <input type="submit" value="Guardar" className="btn btn-info float-right" />
+                  </form>
+              </div>
+            </div>
+           
+
+            
+          </div>
+
+        </div>
+        
  
  
         </Modal>
